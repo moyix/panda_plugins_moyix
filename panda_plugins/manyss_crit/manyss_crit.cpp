@@ -142,7 +142,17 @@ bool init_plugin(void *self) {
     // Format: strings, one per line, uppercase
     std::string line;
     size_t nstrings = 0;
+    bool too_short = false;
+    bool too_long = false;
     while(std::getline(search_strings, line)) {
+        if (line.length() > WINDOW_SIZE) {
+            too_long = true;
+            continue;
+        }
+        if (line.length() < MINWORD) {
+            too_short = true;
+            continue;
+        }
         critbit0_insert(&t, line.c_str());
         if (nstrings % 100000 == 1) {
             printf("*");
@@ -151,6 +161,10 @@ bool init_plugin(void *self) {
         nstrings++;
     }
     printf("\nAdded %zu strings to the hash table.\n", nstrings);
+    if (too_long)
+        printf("WARNING: Some lines in the input were too long (more than %d characters) and were skipped.\n", WINDOW_SIZE);
+    if (too_short)
+        printf("WARNING: Some lines in the input were too short (less than %d characters) and were skipped.\n", MINWORD);
 
     char matchfile[128] = {};
     sprintf(matchfile, "%s_string_matches.txt", prefix);
