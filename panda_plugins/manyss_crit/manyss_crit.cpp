@@ -85,7 +85,6 @@ int mem_callback(CPUState *env, target_ulong pc, target_ulong addr,
     }
 
     unsigned int midx = idx;
-    // Makes WINDOW_SIZE - MINWORD queries against the hash table
     char search[WINDOW_SIZE+1] = {};
     char search_tmp[WINDOW_SIZE+1] = {};
     memcpy(search, window+midx, WINDOW_SIZE-midx);
@@ -94,12 +93,8 @@ int mem_callback(CPUState *env, target_ulong pc, target_ulong addr,
     critbit0_node *nearest = (critbit0_node *)t.root;
     for (int i = MINWORD; i < WINDOW_SIZE; i++) {
         search_tmp[i] = '\0';
-        critbit0_node *new_nearest = nearest;
-        if(critbit0_contains(&t, search_tmp, &new_nearest))
+        if(critbit0_contains(&t, search_tmp, &nearest))
             matches[search_tmp]++;
-        // If nearest node didn't change, then we can abort early
-        if (nearest == new_nearest) break;
-        else nearest = new_nearest;
         search_tmp[i] = search[i];
     }
     if (is_write) widx = idx;
