@@ -43,9 +43,9 @@ void uninit_plugin(void *);
 int mem_write_callback(CPUState *env, target_ulong pc, target_ulong addr, target_ulong size, void *buf);
 int mem_read_callback(CPUState *env, target_ulong pc, target_ulong addr, target_ulong size, void *buf);
 
-#include "critbit.h"
-
 }
+
+#include "critbit.h"
 
 unordered_map<string,int> matches;
 
@@ -87,11 +87,20 @@ int mem_callback(CPUState *env, target_ulong pc, target_ulong addr,
     unsigned int midx = idx;
     // Makes WINDOW_SIZE - MINWORD queries against the hash table
     char search[WINDOW_SIZE+1] = {};
+    char search_tmp[WINDOW_SIZE+1] = {};
     memcpy(search, window+midx, WINDOW_SIZE-midx);
     memcpy(search+(WINDOW_SIZE-midx), window, midx);
-    for (int i = WINDOW_SIZE-1; i >= MINWORD-1; i--) {
-        critbit0_contains(&t, search);
-        search[i] = '\0';
+    memcpy(search_tmp, search, WINDOW_SIZE);
+    critbit0_node *nearest = (critbit0_node *)t.root;
+    for (int i = MINWORD; i < WINDOW_SIZE; i++) {
+        search_tmp[i] = '\0';
+        critbit0_node *new_nearest = nearest;
+        if(critbit0_contains(&t, search_tmp, &new_nearest))
+            matches[search_tmp]++;
+        // If nearest node didn't change, then we can abort early
+        if (nearest == new_nearest) break;
+        else nearest = new_nearest;
+        search_tmp[i] = search[i];
     }
     if (is_write) widx = idx;
     else ridx = idx;
@@ -164,12 +173,9 @@ bool init_plugin(void *self) {
     return true;
 }
 
-int print_fn(const char *lf, void *v) {
-    fprintf(mem_report, "%s\n", lf);
-    return 1;
-}
-
 void uninit_plugin(void *self) {
-    critbit0_allprefixed(&t, "", print_fn, NULL);
+    for (auto &kvp : matches)
+        if (kvp.second)
+            fprintf(mem_report, "%s %u\n", kvp.first.c_str(), kvp.second);
     fclose(mem_report);
 }
