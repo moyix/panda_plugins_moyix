@@ -90,13 +90,19 @@ int mem_callback(CPUState *env, target_ulong pc, target_ulong addr,
     memcpy(search, window+midx, WINDOW_SIZE-midx);
     memcpy(search+(WINDOW_SIZE-midx), window, midx);
     memcpy(search_tmp, search, WINDOW_SIZE);
+
     critbit0_node *nearest = (critbit0_node *)t.root;
     for (int i = MINWORD; i < WINDOW_SIZE; i++) {
         search_tmp[i] = '\0';
-        if(critbit0_contains(&t, search_tmp, &nearest))
+        critbit0_node *new_nearest = nearest;
+        if(critbit0_contains(&t, search_tmp, &new_nearest)) {
             matches[search_tmp]++;
+            // Match succeeded, so we can save time on future suffixes
+            nearest = new_nearest;
+        }
         search_tmp[i] = search[i];
     }
+
     if (is_write) widx = idx;
     else ridx = idx;
     return 1;
