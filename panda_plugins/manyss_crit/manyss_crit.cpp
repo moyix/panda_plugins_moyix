@@ -32,6 +32,7 @@ extern "C" {
 
 #include <iostream>
 #include <unordered_map>
+#include <unordered_set>
 using namespace std;
 
 // These need to be extern "C" so that the ABI is compatible with
@@ -48,6 +49,9 @@ int mem_read_callback(CPUState *env, target_ulong pc, target_ulong addr, target_
 #include "critbit.h"
 
 unordered_map<string,int> matches;
+// This should properly be a char[4] but I can't be bothered
+// to figure out how to get the template+hash magic to work.
+unordered_set<uint32_t> prefixes;
 
 #define MINWORD 4
 #define WINDOW_SIZE 20
@@ -89,9 +93,14 @@ int mem_callback(CPUState *env, target_ulong pc, target_ulong addr,
     char search_tmp[WINDOW_SIZE+1] = {};
     memcpy(search, window+midx, WINDOW_SIZE-midx);
     memcpy(search+(WINDOW_SIZE-midx), window, midx);
+    
+    if (prefixes.find(*(uint32_t *)search) == prefixes.end())
+        goto done;
+    
     memcpy(search_tmp, search, WINDOW_SIZE);
 
-    critbit0_node *nearest = (critbit0_node *)t.root;
+    critbit0_node *nearest;
+    nearest = (critbit0_node *)t.root;
     for (int i = MINWORD; i < WINDOW_SIZE; i++) {
         search_tmp[i] = '\0';
         critbit0_node *new_nearest = nearest;
@@ -103,6 +112,7 @@ int mem_callback(CPUState *env, target_ulong pc, target_ulong addr,
         search_tmp[i] = search[i];
     }
 
+done:
     if (is_write) widx = idx;
     else ridx = idx;
     return 1;
@@ -154,6 +164,7 @@ bool init_plugin(void *self) {
             too_short = true;
             continue;
         }
+        prefixes.insert(*(uint32_t *)line.substr(0,4).c_str());
         critbit0_insert(&t, line.c_str());
         if (nstrings % 100000 == 1) {
             printf("*");
