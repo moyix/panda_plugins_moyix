@@ -138,15 +138,14 @@ bool init_plugin(void *self) {
 
     panda_arg_list *args = panda_get_args("manyss_crit");
 
-    const char *prefix = panda_parse_string(args, "name", "manyss_crit");
-    char stringsfile[128] = {};
-    sprintf(stringsfile, "%s_search_strings.txt", prefix);
+    const char *outfile = panda_parse_string(args, "output", "manyss_crit");
+    const char *infile = panda_parse_string(args, "input", "manyss_crit");
 
-    printf ("search strings file [%s]\n", stringsfile);
+    printf ("search strings file [%s]\n", infile);
 
-    std::ifstream search_strings(stringsfile);
+    std::ifstream search_strings(infile);
     if (!search_strings) {
-        printf("Couldn't open %s; no strings to search for. Exiting.\n", stringsfile);
+        printf("Couldn't open %s; no strings to search for. Exiting.\n", infile);
         return false;
     }
 
@@ -178,9 +177,7 @@ bool init_plugin(void *self) {
     if (too_short)
         printf("WARNING: Some lines in the input were too short (less than %d characters) and were skipped.\n", MINWORD);
 
-    char matchfile[128] = {};
-    sprintf(matchfile, "%s_string_matches.txt", prefix);
-    mem_report = fopen(matchfile, "w");
+    mem_report = fopen(outfile, "w");
     if(!mem_report) {
         printf("Couldn't write report:\n");
         perror("fopen");
@@ -194,7 +191,6 @@ bool init_plugin(void *self) {
     panda_register_callback(self, PANDA_CB_VIRT_MEM_WRITE, pcb);
     pcb.virt_mem_read = mem_read_callback;
     panda_register_callback(self, PANDA_CB_VIRT_MEM_READ, pcb);
-
 
     return true;
 }
